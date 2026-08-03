@@ -1,47 +1,40 @@
 //@version=5
-strategy("XAUUSD ELITE", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=2)
+strategy("ICT SILVER BULLET STRATEGY", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=2)
 
 ema50 = ta.ema(close, 50)
 ema200 = ta.ema(close, 200)
 rsi = ta.rsi(close, 14)
 [macdLine, signalLine, histLine] = ta.macd(close, 12, 26, 9)
 atr = ta.atr(14)
-support = ta.lowest(low, 20)
-resistance = ta.highest(high, 20)
-volume_ma = ta.sma(volume, 20)
-[adxPlus, adxMinus, adx] = ta.dmi(14, 14)
 
-rsi_ob = input(70)
-rsi_os = input(30)
+fvg_up = high[2] < low[0]
+fvg_down = low[2] > high[0]
+
+is_dst = (month > 3 and month < 11) or (month == 3 and dayofweek == dayofweek.sunday and hour >= 2) or (month == 11 and dayofweek != dayofweek.sunday and hour < 2)
+ny_offset = is_dst ? -4 : -5
+current_hour_ny = (hour + ny_offset + 24) % 24
+
+silver_bullet_1 = (current_hour_ny >= 9 and current_hour_ny <= 11)
+silver_bullet_2 = (current_hour_ny >= 13 and current_hour_ny <= 15)
+silver_bullet_active = silver_bullet_1 or silver_bullet_2
 
 trend_up = ema50 > ema200
 trend_down = ema50 < ema200
-trend_strong = adx > 20
-macd_bull = macdLine > signalLine and histLine > 0
-macd_bear = macdLine < signalLine and histLine < 0
-rsi_bull = rsi > 50 and rsi < rsi_ob
-rsi_bear = rsi < 50 and rsi > rsi_os
-vol_ok = volume > volume_ma
-session = (hour >= 2 and hour < 6) or (hour >= 8 and hour < 17)
 
-buy_sig = (trend_up and macd_bull and rsi_bull and vol_ok and trend_strong and session) or 
-          (close < support * 1.002 and close > support * 0.99 and trend_up and trend_strong and vol_ok) or
-          (rsi < rsi_os and trend_up and vol_ok and session and macd_bull)
+buy_signal = fvg_up and trend_up and silver_bullet_active and close > open
+sell_signal = fvg_down and trend_down and silver_bullet_active and close < open
 
-sell_sig = (trend_down and macd_bear and rsi_bear and vol_ok and trend_strong and session) or
-           (close > resistance * 0.998 and close < resistance * 1.01 and trend_down and trend_strong and vol_ok) or
-           (rsi > rsi_ob and trend_down and vol_ok and session and macd_bear)
+buy_sl = low - (atr * 1.5)
+buy_tp = high + (atr * 2.0)
 
-buy_sl = close - (atr * 2.0)
-buy_tp = close + (atr * 2.5)
-sell_sl = close + (atr * 2.0)
-sell_tp = close - (atr * 2.5)
+sell_sl = high + (atr * 1.5)
+sell_tp = low - (atr * 2.0)
 
-if buy_sig and not na(buy_sl) and not na(buy_tp)
+if buy_signal and not na(buy_sl) and not na(buy_tp)
     strategy.entry("BUY", strategy.long)
     strategy.exit("EXIT_BUY", "BUY", stop=buy_sl, limit=buy_tp)
 
-if sell_sig and not na(sell_sl) and not na(sell_tp)
+if sell_signal and not na(sell_sl) and not na(sell_tp)
     strategy.entry("SELL", strategy.short)
     strategy.exit("EXIT_SELL", "SELL", stop=sell_sl, limit=sell_tp)
 
@@ -50,9 +43,7 @@ if hour == 23 and minute == 55
 
 plot(ema50, color=color.blue, linewidth=2)
 plot(ema200, color=color.orange, linewidth=2)
-plot(support, color=color.new(color.green, 50), linewidth=1, style=plot.style_dashed)
-plot(resistance, color=color.new(color.red, 50), linewidth=1, style=plot.style_dashed)
-hline(rsi_ob, color=color.gray, linestyle=hline.style_dotted)
-hline(rsi_os, color=color.gray, linestyle=hline.style_dotted)
-plotshape(buy_sig, style=shape.labelup, location=location.belowbar, color=color.green)
-plotshape(sell_sig, style=shape.labeldown, location=location.abovebar, color=color.red)
+
+hline(0)
+plotshape(buy_signal, style=shape.labelup, location=location.belowbar, color=color.green, size=size.small)
+plotshape(sell_signal, style=shape.labeldown, location=location.abovebar, color=color.red, size=size.small)
